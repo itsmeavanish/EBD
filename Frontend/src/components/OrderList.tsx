@@ -34,7 +34,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
     };
     const fetchUsers = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/auth/admin/users', { headers });
+        const response = await fetch('https://ebd-mocha.vercel.app/api/auth/admin/users', { headers });
         const data = await response.json();
         setUsers(data.users);
       } catch (err) {

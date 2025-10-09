@@ -53,7 +53,7 @@ const BrandPortal: React.FC = () => {
   const fetchBrands = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/brands/list', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/brands/list', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -77,7 +77,7 @@ const BrandPortal: React.FC = () => {
       if (selectedStatus) params.append('status', selectedStatus);
 
       const response = await fetch(
-        `http://localhost:3001/api/brands/dashboard/${selectedBrand}?${params}`,
+        `https://ebd-mocha.vercel.app/api/brands/dashboard/${selectedBrand}?${params}`,
         {
           headers: { 'Authorization': `Bearer ${token}` }
         }

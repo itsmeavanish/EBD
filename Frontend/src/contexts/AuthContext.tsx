@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(JSON.parse(storedUser));
       setIsLoading(false);
     } else if (token) {
-      fetch('http://localhost:3001/api/auth/verify', {
+      fetch('https://ebd-mocha.vercel.app/api/auth/verify', {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => res.json())
@@ -101,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<User | null> => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/login', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     role: 'user' | 'admin' = 'user'
   ): Promise<boolean> => {
     try {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, name, role }),

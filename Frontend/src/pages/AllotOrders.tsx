@@ -24,7 +24,7 @@ function AllotOrders() {
  useEffect(() => {
   const fetchOrders = async () => {
     try {
-      const res = await axios.get('http://localhost:3001/api/auth/admin/orders', {
+      const res = await axios.get('https://ebd-mocha.vercel.app/api/auth/admin/orders', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -67,7 +67,7 @@ function AllotOrders() {
         isAlloted: false,
       };
 
-      const res = await axios.post('http://localhost:3001/api/auth/upload/orders', transformedData);
+      const res = await axios.post('https://ebd-mocha.vercel.app/api/auth/upload/orders', transformedData);
       setOrders(prev => [res.data.order, ...prev]);
     } catch (err) {
       console.error('Failed to add order:', err);
@@ -79,7 +79,7 @@ function AllotOrders() {
     if (!window.confirm('Are you sure you want to delete this order?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/api/auth/admin/orders/${id}`,{
+      await axios.delete(`https://ebd-mocha.vercel.app/api/auth/admin/orders/${id}`,{
         headers:{
             Authorization:`Bearer ${token}`
         }
@@ -93,7 +93,7 @@ function AllotOrders() {
   // 🔹 Update order in DB and update state
   const handleUpdateOrder = async (id: string, updatedOrder: Partial<Order>) => {
     try {
-      const res = await axios.put(`http://localhost:3001/api/auth/admin/orders/${id}`, updatedOrder,{
+      const res = await axios.put(`https://ebd-mocha.vercel.app/api/auth/admin/orders/${id}`, updatedOrder,{
         headers:{
             Authorization:`Bearer ${token}`
         }

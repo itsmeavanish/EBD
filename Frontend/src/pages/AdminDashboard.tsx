@@ -64,9 +64,9 @@ console.log("user h "+user);
       };
 
       const [usersRes, ordersRes, refundsRes] = await Promise.all([
-        fetch('http://localhost:3001/api/auth/admin/users', { headers }),
-        fetch('http://localhost:3001/api/auth/admin/orders', { headers }),
-        fetch('http://localhost:3001/api/auth/admin/refunds', { headers })
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/users', { headers }),
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/orders', { headers }),
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/refunds', { headers })
       ]);
 
       const usersData = await usersRes.json();

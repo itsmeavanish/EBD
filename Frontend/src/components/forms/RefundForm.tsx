@@ -102,7 +102,7 @@ const RefundForm: React.FC<RefundFormProps> = ({ onBack }) => {
       refundData.append('orderId',formData.orderId);
       refundData.append('refundAmount',formData.refundAmount);
       refundData.append('screenshot',formData.screenshot as Blob);
-      const response1 = await fetch('http://localhost:3001/api/refunds/verify', {
+      const response1 = await fetch('https://ebd-mocha.vercel.app/api/refunds/verify', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -114,7 +114,7 @@ const RefundForm: React.FC<RefundFormProps> = ({ onBack }) => {
       }else{
         throw new Error('Failed to submit refund data');
       }
-      const response = await fetch('http://localhost:3001/api/verification', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/verification', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

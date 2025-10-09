@@ -89,9 +89,9 @@ const EnhancedAdminDashboard: React.FC = () => {
       };
 
       const [usersRes, ordersRes, refundsRes] = await Promise.all([
-        fetch('http://localhost:3001/api/auth/admin/users', { headers }),
-        fetch('http://localhost:3001/api/auth/admin/orders', { headers }),
-        fetch('http://localhost:3001/api/auth/admin/refunds', { headers })
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/users', { headers }),
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/orders', { headers }),
+        fetch('https://ebd-mocha.vercel.app/api/auth/admin/refunds', { headers })
       ]);
 
       const usersData = await usersRes.json();
@@ -117,7 +117,7 @@ const EnhancedAdminDashboard: React.FC = () => {
   const fetchBrands = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/brands/list', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/brands/list', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -138,7 +138,7 @@ const EnhancedAdminDashboard: React.FC = () => {
       if (selectedBrand !== 'all') params.append('brandName', selectedBrand);
       if (orderStatus !== 'all') params.append('status', orderStatus);
 
-      const response = await fetch(`http://localhost:3001/api/auth/admin/orders?${params}`, {
+      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/admin/orders?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -154,7 +154,7 @@ const EnhancedAdminDashboard: React.FC = () => {
   const fetchPaymentHistory = async (userId: string) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/auth/admin/users/${userId}/payment-history`, {
+      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/admin/users/${userId}/payment-history`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -179,7 +179,7 @@ const EnhancedAdminDashboard: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/auth/admin/orders/bulk-allot', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/auth/admin/orders/bulk-allot', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

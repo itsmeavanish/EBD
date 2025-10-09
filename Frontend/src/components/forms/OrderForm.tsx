@@ -117,7 +117,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
     const token = localStorage.getItem('token');
 
     const response = await fetch(
-      `http://localhost:3001/api/auth/orders/${order._id}`, // orderId as param
+      `https://ebd-mocha.vercel.app/api/auth/orders/${order._id}`, // orderId as param
       {
         method: 'PUT',
         headers: {
