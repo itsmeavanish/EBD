@@ -1,0 +1,65 @@
+BRAND ACCESS PORTAL GUIDE
+=========================
+
+URL: /brand-access
+
+This is a public portal where brands can view their orders without needing to create an account.
+
+HOW IT WORKS:
+-------------
+Brands are provided with credentials consisting of:
+1. Brand Name (exact as stored in orders)
+2. Access Key (generated automatically)
+
+ACCESS KEY FORMAT:
+------------------
+The access key is generated using this pattern:
+{brandname_lowercase_no_spaces}_2024
+
+Examples:
+- Brand Name: "Nike" → Access Key: "nike_2024"
+- Brand Name: "Adidas" → Access Key: "adidas_2024"
+- Brand Name: "Puma India" → Access Key: "pumaindia_2024"
+- Brand Name: "H&M" → Access Key: "h&m_2024"
+
+FEATURES FOR BRANDS:
+--------------------
+1. View all their orders in one place
+2. Filter orders by:
+   - Date range (start date to end date)
+   - Season (Spring, Summer, Fall, Winter)
+   - Status (Placed, Allotted, Confirmed)
+3. Search orders by:
+   - Order ID
+   - Customer name
+   - Product name
+4. View statistics:
+   - Total placed orders
+   - Total revenue
+   - All orders count
+   - Pending orders
+   - Allotted orders
+   - Confirmed orders
+5. View detailed order information including:
+   - Order ID
+   - Product name
+   - Quantity
+   - Price
+   - Customer details
+   - Delivery address
+   - Order status
+   - Submission date
+
+SECURITY:
+---------
+- Sessions are stored in browser sessionStorage
+- Credentials are verified on the backend
+- No account creation required
+- Access is brand-specific (brands only see their own orders)
+
+TO SHARE WITH BRANDS:
+---------------------
+1. Provide them with the exact brand name as it appears in the system
+2. Calculate their access key using the format above
+3. Share the URL: /brand-access
+4. They can login anytime to view their orders
