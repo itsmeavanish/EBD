@@ -2,10 +2,11 @@ const Tesseract = require('tesseract.js');
 const { Order } = require('../models/Order');
 const fs = require('fs');
 const path = require('path');
+const os = require('os'); // ✅ for temporary dir
 
 const verifyScreenshot = async (req, res) => {
   try {
-    // Validate required inputs
+    // ✅ Validate required inputs
     if (!req.files || !req.files.screenshot) {
       return res.status(400).json({
         success: false,
@@ -14,7 +15,7 @@ const verifyScreenshot = async (req, res) => {
     }
 
     const screenshot = req.files.screenshot;
-    const orderNumber = req.body.orderId; // ✅ Expecting orderNumber instead of orderId
+    const orderNumber = req.body.orderId;
     const refundAmount = parseFloat(req.body.refundAmount);
 
     if (!orderNumber || isNaN(refundAmount)) {
@@ -24,8 +25,8 @@ const verifyScreenshot = async (req, res) => {
       });
     }
 
-    // Check order in database
-    const order = await Order.findOne({ orderId:orderNumber });
+    // ✅ Check order in database
+    const order = await Order.findOne({ orderId: orderNumber });
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -33,22 +34,28 @@ const verifyScreenshot = async (req, res) => {
       });
     }
 
-    // Save screenshot temporarily
-    const tempDir = path.join(__dirname, '..', 'uploads');
+    // ✅ Use environment-safe uploads directory
+    const isProd = process.env.NODE_ENV === 'production';
+    const tempDir = isProd
+      ? path.join(os.tmpdir(), 'uploads') // for Vercel/AWS/Render
+      : path.join(__dirname, '..', 'uploads'); // for local dev
+
     if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
     const tempFilePath = path.join(tempDir, `${Date.now()}-${screenshot.name}`);
     await screenshot.mv(tempFilePath);
 
-    // OCR processing
+    // ✅ OCR processing
     const { data: { text } } = await Tesseract.recognize(tempFilePath, 'eng', {
       logger: m => console.log(m)
     });
 
-    // Delete temp file after OCR
-    fs.unlinkSync(tempFilePath);
+    // ✅ Cleanup temp file
+    fs.unlink(tempFilePath, err => {
+      if (err) console.warn("Failed to delete temp file:", err);
+    });
 
-    // ✅ Regex to extract "Order Number" and "Price"
+    // ✅ Extract order number and price using regex
     const orderNumberPattern = /(?:order\s*(?:number|no\.?|#)?[:;\s]*)?([A-Z0-9\-]{6,})/gi;
     const pricePattern = /(?:₹|rs\.?|inr|price|amount|total)[\s:]*([0-9,]+\.?[0-9]*)/gi;
 
@@ -70,7 +77,7 @@ const verifyScreenshot = async (req, res) => {
       extractedPrice = parseFloat(priceString);
     }
 
-    // Verification checks
+    // ✅ Compare extracted data
     const orderMatch = extractedOrderNumber && extractedOrderNumber.toUpperCase() === orderNumber.toUpperCase();
     const priceMatch = extractedPrice && Math.abs(extractedPrice - refundAmount) < 1;
 
@@ -96,7 +103,7 @@ const verifyScreenshot = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Error processing screenshot",
-      error: error.message // ✅ helpful for debugging
+      error: error.message
     });
   }
 };
