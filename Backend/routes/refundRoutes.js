@@ -22,7 +22,9 @@ router.post("/submit", authMiddleware, async (req, res) => {
       userEmail,
       extractedOrderId,
       extractedPrice,
-      verified
+      verified,
+      reviewScreenshot,
+      sellerScreenshot
     } = req.body;
 
     if (!verified || verified !== 'true') {
@@ -31,12 +33,12 @@ router.post("/submit", authMiddleware, async (req, res) => {
         message: "Screenshot verification required before submission"
       });
     }
-
+``
     let screenshotUrl = null;
     if (req.files && req.files.screenshot) {
       const cloudinary = require("cloudinary").v2;
       const file = req.files.screenshot;
-
+      
       const uploadResult = await cloudinary.uploader.upload(file.tempFilePath, {
         folder: "refunds",
         resource_type: "auto"
@@ -44,12 +46,37 @@ router.post("/submit", authMiddleware, async (req, res) => {
 
       screenshotUrl = uploadResult.secure_url;
     }
+    let reviewScreenshotUrl = null;
+    if (req.files && req.files.reviewScreenshot) {
+      const cloudinary = require("cloudinary").v2;
+      const file = req.files.reviewScreenshot;
+
+      const uploadResult = await cloudinary.uploader.upload(file.tempFilePath, {
+        folder: "refunds",
+        resource_type: "auto"
+      });
+
+      reviewScreenshotUrl = uploadResult.secure_url;
+    }
+    if (req.files && req.files.sellerScreenshot) {
+      const cloudinary = require("cloudinary").v2;
+      const file = req.files.sellerScreenshot;
+
+      const uploadResult = await cloudinary.uploader.upload(file.tempFilePath, {
+        folder: "refunds",
+        resource_type: "auto"
+      });
+
+      sellerScreenshotUrl = uploadResult.secure_url;
+    }
 
     const refund = new Refund({
       orderId,
       refundAmount: parseFloat(refundAmount),
       reason,
       screenshot: screenshotUrl,
+      reviewScreenshot: reviewScreenshotUrl,
+      sellerScreenshot: sellerScreenshotUrl,
       productName,
       originalOrderDate,
       customerName,

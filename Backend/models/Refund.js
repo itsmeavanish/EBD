@@ -5,6 +5,8 @@ const RefundSchema = new mongoose.Schema({
   refundAmount: { type: Number, required: true },
   reason: { type: String, required: true },
   screenshot: { type: String, required: true },
+  reviewScreenshot: { type: String, required: false },
+  sellerScreenshot: { type: String, required: false },
   productName: { type: String, required: true },
   originalOrderDate: { type: String, required: true },
   customerName: { type: String, required: true },
