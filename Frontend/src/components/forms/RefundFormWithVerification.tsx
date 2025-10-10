@@ -94,7 +94,7 @@ const RefundFormWithVerification: React.FC<RefundFormProps> = ({ onBack }) => {
       verifyData.append('refundAmount', formData.refundAmount);
       
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/refunds/verify-screenshot', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/refunds/verify-screenshot', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -155,7 +155,7 @@ const RefundFormWithVerification: React.FC<RefundFormProps> = ({ onBack }) => {
       submitData.append('extractedPrice', verifiedData?.price || '');
 
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:3001/api/refunds/submit', {
+      const response = await fetch('https://ebd-mocha.vercel.app/api/refunds/submit', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
