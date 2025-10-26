@@ -8,6 +8,8 @@ interface OrderFormData {
   screenshot: File | null;
   date: string;
   productName: string;
+  brandName: string; // ✅ added
+  quantity: string; // ✅ added
   address: string;
   otherAddress: string;
   reviewerName: string;
@@ -26,6 +28,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
     screenshot: null,
     date: order ? order.date : '',
     productName: order ? order.productName : '',
+    brandName: order ? order.brandName || '' : '', // ✅ added
+    quantity: order ? String(order.quantity || '') : '', // ✅ added
     address: order ? order.address : '',
     otherAddress: '',
     reviewerName: '',
@@ -71,79 +75,129 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsSubmitting(true);
-  setSubmitStatus('idle');
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
 
-  try {
-    let screenshotUrl = order?.screenshot || '';
+    try {
+      let screenshotUrl = order?.screenshot || '';
 
-    // Step 1: Upload screenshot if a new file is selected
-    if (formData.screenshot) {
-      const formDataImage = new FormData();
-      formDataImage.append('screenshot', formData.screenshot);
+      // Step 1: Upload screenshot if a new file is selected
+      if (formData.screenshot) {
+        const formDataImage = new FormData();
+        formDataImage.append('screenshot', formData.screenshot);
 
-      const uploadResponse = await fetch(
-        'https://ebd-mocha.vercel.app/api/auth/upload/screenshotupload',
-        {
-          method: 'POST',
-          body: formDataImage,
+        const uploadResponse = await fetch(
+          'https://ebd-mocha.vercel.app/api/auth/upload/screenshotupload',
+          {
+            method: 'POST',
+            body: formDataImage,
+          }
+        );
+
+        const uploadData = await uploadResponse.json();
+        if (uploadData.success && uploadData.url) {
+          screenshotUrl = uploadData.url;
+        } else {
+          throw new Error('Screenshot upload failed');
         }
-      );
-
-      const uploadData = await uploadResponse.json();
-      if (uploadData.success && uploadData.url) {
-        screenshotUrl = uploadData.url; // get uploaded image URL
-      } else {
-        throw new Error('Screenshot upload failed');
       }
-    }
 
-    // Step 2: Update order via PUT
-    const orderPayload = {
-      orderId: formData.orderId,
-      price: formData.price,
-      date: formData.date,
-      productName: formData.productName,
-      address:
-        formData.address === 'Other' ? formData.otherAddress : formData.address,
-      reviewerName: formData.reviewerName,
-      mediatorName: formData.mediatorName,
-      screenshot: screenshotUrl,
-      isPlaced: true,
-      isAlloted: true,
-    };
+      // Step 2: Prepare order payload
+      const orderPayload = {
+        orderId: formData.orderId,
+        price: formData.price,
+        date: formData.date,
+        productName: formData.productName,
+        brandName: formData.brandName, // ✅ added
+        quantity: formData.quantity, // ✅ added
+        address:
+          formData.address === 'Other' ? formData.otherAddress : formData.address,
+        reviewerName: formData.reviewerName,
+        mediatorName: formData.mediatorName,
+        screenshot: screenshotUrl,
+        isPlaced: true,
+        isAlloted: true,
+      };
 
-    const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token');
+      let success = false;
 
-    const response = await fetch(
-      `https://ebd-mocha.vercel.app/api/auth/orders/${order._id}`, // orderId as param
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(orderPayload),
+      // Step 3: Update existing order
+      console.log('Current order:', order);
+      if (order && order._id) {
+        console.log('📝 Updating existing order:', order._id);
+        const updateResponse = await fetch(
+          `https://ebd-mocha.vercel.app/api/auth/orders/${order._id}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(orderPayload),
+          }
+        );
+
+        if (updateResponse.ok) {
+          const data = await updateResponse.json();
+          console.log('✅ Updated order:', data.order);
+          success = true;
+        } else if (updateResponse.status === 404) {
+          console.warn('Order not found, creating new entry...');
+        } else {
+          throw new Error('Failed to update order');
+        }
       }
-    );
 
-    if (response.ok) {
-      const data = await response.json();
-      console.log('Updated order:', data.order);
-      setSubmitStatus('success');
-      // Reset form if needed
-    } else {
-      throw new Error('Failed to update order');
+      // Step 4: Create new order
+      if (!order?._id || !success) {
+        console.log('🆕 Creating new order...');
+        const createResponse = await fetch(
+          'https://ebd-mocha.vercel.app/api/auth/upload/orders',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(orderPayload),
+          }
+        );
+
+        if (createResponse.ok) {
+          const data = await createResponse.json();
+          console.log('✅ Created new order:', data.order);
+          success = true;
+        } else {
+          throw new Error('Failed to create new order');
+        }
+      }
+
+      // Step 5: Reset on success
+      if (success) {
+        setSubmitStatus('success');
+        setFormData({
+          orderId: '',
+          price: '',
+          screenshot: null,
+          date: '',
+          productName: '',
+          brandName: '', // ✅ added
+          quantity: '', // ✅ added
+          address: '',
+          otherAddress: '',
+          reviewerName: '',
+          mediatorName: '',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error submitting form:', error);
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error('Error submitting form:', error);
-    setSubmitStatus('error');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 py-8">
@@ -194,6 +248,36 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               value={formData.price}
               onChange={(e) => handleInputChange('price', e.target.value)}
               placeholder="Enter the price"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          {/* ✅ Brand Name */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6">
+            <label className="block text-lg font-medium text-gray-900 mb-4">
+              Brand Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.brandName}
+              onChange={(e) => handleInputChange('brandName', e.target.value)}
+              placeholder="Enter brand name"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+            />
+          </div>
+
+          {/* ✅ Quantity */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6">
+            <label className="block text-lg font-medium text-gray-900 mb-4">
+              Quantity <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              required
+              value={formData.quantity}
+              onChange={(e) => handleInputChange('quantity', e.target.value)}
+              placeholder="Enter quantity"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
@@ -257,9 +341,6 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               onChange={(e) => handleInputChange('productName', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
-
-            
-          
           </div>
 
           {/* Address */}
@@ -348,7 +429,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
             />
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6">
             <button
               type="submit"
@@ -362,7 +443,6 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               {isSubmitting ? 'Submitting...' : 'Submit Order Form'}
             </button>
 
-            {/* Status Messages */}
             {submitStatus === 'success' && (
               <div className="mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
                 Form submitted successfully! Your order has been recorded.
