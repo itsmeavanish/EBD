@@ -84,7 +84,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
       formDataImage.append('screenshot', formData.screenshot);
 
       const uploadResponse = await fetch(
-        'http://localhost:3001/api/auth/upload/screenshotupload',
+        'https://ebd-mocha.vercel.app/api/auth/upload/screenshotupload',
         {
           method: 'POST',
           body: formDataImage,
