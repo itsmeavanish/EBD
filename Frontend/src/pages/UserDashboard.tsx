@@ -76,6 +76,7 @@ const UserDashboard: React.FC = () => {
         fetch(`http://localhost:3001/api/auth/users/${encodeURIComponent(user.email)}/allocations`, { headers })
       ]);
 
+      
       const placedData = await placedOrdersRes.json();
       const refundData = await refundOrdersRes.json();
       const allocationsData = await allocationsRes.json();
