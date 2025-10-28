@@ -70,7 +70,22 @@ function AllotOrders() {
       };
 
       const res = await axios.post('http://localhost:3001/api/auth/upload/orders', transformedData);
-      setOrders(prev => [res.data.order, ...prev]);
+      const o = res.data.order;
+      const normalizedCreated: any = {
+        _id: o._id,
+        id: o._id,
+        address: o.address,
+        product: o.productName,
+        ecommercePlatform: o.ecommercePlatform,
+        brand: o.brandName,
+        season: o.season,
+        orderDate: o.date,
+        quantity: o.quantity,
+        amount: o.price,
+        link: o.link,
+        status: o.isAlloted ? 'processing' : 'pending'
+      };
+      setOrders(prev => [normalizedCreated, ...prev]);
     } catch (err) {
       console.error('Failed to add order:', err);
     }

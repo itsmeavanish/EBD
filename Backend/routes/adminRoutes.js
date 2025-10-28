@@ -6,6 +6,7 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 
 const { User } = require("../models/User");
 const { Order } = require("../models/Order");
+const mongoose = require('mongoose');
 const { Refund } = require("../models/Refund");
 const Tesseract = require('tesseract.js');
 const fs = require('fs');
@@ -57,7 +58,11 @@ router.get("/orders", authMiddleware, adminMiddleware, async (req, res) => {
 // Update order status
 router.put("/orders/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const order = await Order.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order id" });
+    }
+    const order = await Order.findByIdAndUpdate(id, req.body, { new: true });
     if (!order) return res.status(404).json({ success: false, message: "Order not found" });
     res.json({ success: true, order });
   } catch (err) {
@@ -85,7 +90,10 @@ router.post("/orders/bulk-allot", authMiddleware, adminMiddleware, async (req, r
       return res.status(400).json({ success: false, message: "User information is required" });
     }
 
-    const orderIds = normalizedAssignments.map(a => a.orderId);
+    const orderIds = normalizedAssignments.map(a => a.orderId).filter(id => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id));
+    if (orderIds.length === 0) {
+      return res.status(400).json({ success: false, message: "No valid order ids provided" });
+    }
     const existingOrders = await Order.find({ _id: { $in: orderIds } });
     const existingById = new Map(existingOrders.map(o => [String(o._id), o]));
     const alreadyAlloted = existingOrders.filter(order => order.isAlloted);

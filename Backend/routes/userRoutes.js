@@ -33,7 +33,7 @@ router.get('/users/:email/allocations', authMiddleware, async (req, res) => {
     console.log("orders",orders);
     orders.forEach(o => {
       (o.allocations || []).forEach(a => {
-        if (a.email === email ) {
+        if (a.email === email && a.isPaymentUploaded) {
           items.push({
             orderId: String(o._id),
             allocationId: String(a._id),
