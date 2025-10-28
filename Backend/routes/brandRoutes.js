@@ -47,6 +47,8 @@ console.log(`Found ${orders.length} orders for brand ${brandName}`);
     const totalOrders = placedOrders.length;
     const allotedOrders = orders.filter(o => o.isAlloted).length;
     const confirmedOrders = orders.filter(o => o.isConfirmed).length;
+    const paidToUsers = orders.filter(o => o.isPaymentUploaded).reduce((sum, o) => sum + (o.price || 0), 0);
+    const usedForOrders = totalRevenue;
 
     const stats = {
       totalOrders: totalOrders,
@@ -54,7 +56,9 @@ console.log(`Found ${orders.length} orders for brand ${brandName}`);
       allOrders: orders.length,
       pendingOrders: orders.filter(o => !o.isPlaced).length,
       allotedOrders: allotedOrders,
-      confirmedOrders: confirmedOrders
+      confirmedOrders: confirmedOrders,
+      paidToUsers,
+      usedForOrders,
     };
 
     res.json({

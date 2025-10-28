@@ -28,6 +28,9 @@ interface AllottedOrder {
   link: string;
   email: string;
   isPlaced: boolean;
+  isAlloted?: boolean;
+  isPaymentUploaded?: boolean;
+  ecommercePlatform?: string;
   createdAt: string;
 }
 
@@ -50,6 +53,7 @@ const UserDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [allottedOrders, setAllottedOrders] = useState<AllottedOrder[]>([]);
+  const [userAllocations, setUserAllocations] = useState<AllottedOrder[]>([]);
   const [refunds, setRefunds] = useState<Refund[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'allotted' | 'placed' | 'refunds'>('allotted');
@@ -66,16 +70,16 @@ const UserDashboard: React.FC = () => {
         Authorization: `Bearer ${token}`,
       };
 
-      const [placedOrdersRes, allottedOrdersRes, refundOrdersRes] = await Promise.all([
-        fetch(`https://ebd-mocha.vercel.app/api/auth/upload/fetchfile?email=${user.email}`, { headers }),
-        fetch(`https://ebd-mocha.vercel.app/api/auth/admin/orders`, { headers }),
-        fetch(`https://ebd-mocha.vercel.app/api/refunds/refunds`, { headers })
+      const [placedOrdersRes, refundOrdersRes, allocationsRes] = await Promise.all([
+        fetch(`http://localhost:3001/api/auth/upload/fetchfile?email=${user.email}`, { headers }),
+        fetch(`http://localhost:3001/api/refunds/refunds`, { headers }),
+        fetch(`http://localhost:3001/api/auth/users/${encodeURIComponent(user.email)}/allocations`, { headers })
       ]);
 
       const placedData = await placedOrdersRes.json();
-      const allottedData = await allottedOrdersRes.json();
       const refundData = await refundOrdersRes.json();
-
+      const allocationsData = await allocationsRes.json();
+      console.log("placedData",placedData);
       if (placedOrdersRes.ok && placedData.success) {
         setOrders(placedData.files);
       }
@@ -83,9 +87,13 @@ const UserDashboard: React.FC = () => {
         console.log("refund vala",refundData.refunds);
         setRefunds(refundData.refunds);
       }
-      if (allottedOrdersRes.ok && allottedData.success) {
-        const userAllotted = allottedData.orders.filter((order: AllottedOrder) => order.email === user.email);
-        setAllottedOrders(userAllotted);
+      // derive allottedOrders from allocations (for legacy UI pieces)
+      if (allocationsRes.ok && allocationsData.success) {
+        console.log("allocationsData",allocationsData);
+        setAllottedOrders(allocationsData.allocations);
+      }
+      if (allocationsRes.ok && allocationsData.success) {
+        setUserAllocations(allocationsData.allocations);
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -131,8 +139,7 @@ const handleRefund = (orderId: string) => {
 };
 
   const placedOrders = orders.filter(order => order.isPlaced === true);
-  console.log("placed vala",placedOrders);
-  const  pendingOrders = orders.filter(order => order.isPlaced === false);
+  const  pendingOrders = userAllocations as any;
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100 flex items-center justify-center">
@@ -323,6 +330,12 @@ const handleRefund = (orderId: string) => {
                                 <Calendar className="w-4 h-4" />
                                 {formatDate(order.date)}
                               </span>
+                              {order.ecommercePlatform && (
+                                <span className="flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                                  {order.ecommercePlatform}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>

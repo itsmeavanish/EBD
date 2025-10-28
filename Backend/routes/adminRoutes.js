@@ -7,6 +7,10 @@ const adminMiddleware = require("../middleware/adminMiddleware");
 const { User } = require("../models/User");
 const { Order } = require("../models/Order");
 const { Refund } = require("../models/Refund");
+const Tesseract = require('tesseract.js');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 // Get all users
 router.get("/users", authMiddleware, adminMiddleware, async (req, res) => {
@@ -62,20 +66,28 @@ router.put("/orders/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// Bulk allot orders to users
+// Bulk allot orders to users (supports per-order overrides)
 router.post("/orders/bulk-allot", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { orderIds, userId, userName, userEmail } = req.body;
+    const { assignments, userId, userName, userEmail } = req.body;
 
-    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
-      return res.status(400).json({ success: false, message: "Order IDs array is required" });
+    // Backward compat: if orderIds passed, convert to assignments
+    let normalizedAssignments = assignments;
+    if ((!assignments || !Array.isArray(assignments)) && Array.isArray(req.body.orderIds)) {
+      normalizedAssignments = req.body.orderIds.map((id) => ({ orderId: id }));
+    }
+
+    if (!normalizedAssignments || !Array.isArray(normalizedAssignments) || normalizedAssignments.length === 0) {
+      return res.status(400).json({ success: false, message: "assignments array is required" });
     }
 
     if (!userId || !userName || !userEmail) {
       return res.status(400).json({ success: false, message: "User information is required" });
     }
 
+    const orderIds = normalizedAssignments.map(a => a.orderId);
     const existingOrders = await Order.find({ _id: { $in: orderIds } });
+    const existingById = new Map(existingOrders.map(o => [String(o._id), o]));
     const alreadyAlloted = existingOrders.filter(order => order.isAlloted);
 
     if (alreadyAlloted.length > 0) {
@@ -86,22 +98,35 @@ router.post("/orders/bulk-allot", authMiddleware, adminMiddleware, async (req, r
       });
     }
 
-    const result = await Order.updateMany(
-      { _id: { $in: orderIds }, isAlloted: false },
-      {
-        $set: {
-          isAlloted: true,
-          userId: userId,
-          userName: userName,
-          email: userEmail
-        }
-      }
-    );
+    const updates = await Promise.all(normalizedAssignments.map(async (a) => {
+      const id = a.orderId;
+      const overrides = {};
+      if (typeof a.quantity === 'number') overrides.quantity = a.quantity;
+      if (typeof a.address === 'string' && a.address.trim() !== '') overrides.address = a.address.trim();
+      const updated = await Order.findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            ...overrides,
+            isAlloted: true,
+            userId: userId,
+            userName: userName,
+            email: userEmail,
+            isPaymentUploaded: false,
+          }
+        },
+        { new: true }
+      );
+      return updated;
+    }));
+
+    const modifiedCount = updates.filter(Boolean).length;
 
     res.json({
       success: true,
-      message: `${result.modifiedCount} orders alloted successfully`,
-      modifiedCount: result.modifiedCount
+      message: `${modifiedCount} orders allotted successfully`,
+      modifiedCount,
+      orders: updates
     });
   } catch (err) {
     console.error("Error bulk allotting orders:", err);
@@ -177,3 +202,97 @@ router.delete("/refunds/:id", authMiddleware, adminMiddleware, async (req, res) 
 });
 
 module.exports = router;
+
+// Allocate a single order with multiple address/quantity rows and optional payment screenshot verification
+router.post("/orders/:id/allocate", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    // assignments: [{ address, quantity, email, userId, userName, paymentAmount }]
+    const rawAssignments = req.body.assignments || [];
+
+    if (!Array.isArray(rawAssignments) || rawAssignments.length === 0) {
+      return res.status(400).json({ success: false, message: "assignments array is required" });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    let uploadedUrl = "";
+    // optional payment screenshot verification per allocate request (single screenshot verifying total payment)
+    if (req.files && req.files.paymentScreenshot && typeof rawAssignments[0]?.paymentAmount === 'number') {
+      // save temp
+      const isProd = process.env.NODE_ENV === 'production';
+      const tempDir = isProd ? path.join(os.tmpdir(), 'uploads') : path.join(__dirname, '..', 'uploads');
+      if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+      const tempFilePath = path.join(tempDir, `${Date.now()}-${req.files.paymentScreenshot.name}`);
+      await req.files.paymentScreenshot.mv(tempFilePath);
+
+      try {
+        const { data: { text } } = await Tesseract.recognize(tempFilePath, 'eng');
+        fs.unlink(tempFilePath, () => {});
+        const pricePattern = /(?:₹|rs\.?|inr|price|amount|total)[\s:]*([0-9,]+\.?[0-9]*)/gi;
+        const priceMatches = [...text.matchAll(pricePattern)];
+        let extractedPrice = null;
+        if (priceMatches.length > 0) {
+          const priceString = priceMatches[priceMatches.length - 1][1].replace(/,/g, '');
+          extractedPrice = parseFloat(priceString);
+        }
+        const expectedAmount = rawAssignments.reduce((s, a) => s + (a.paymentAmount || 0), 0);
+        if (!extractedPrice || Math.abs(extractedPrice - expectedAmount) >= 1) {
+          return res.status(400).json({ success: false, message: "Payment verification failed", extractedPrice, expectedAmount });
+        }
+      } catch (err) {
+        return res.status(500).json({ success: false, message: "Error verifying payment screenshot" });
+      }
+    }
+
+    // persist allocations
+    const allocations = rawAssignments.map(a => ({
+      address: a.address,
+      quantity: a.quantity,
+      userId: a.userId || '',
+      userName: a.userName || '',
+      email: a.email,
+      isPaymentUploaded: false,
+      paymentAmount: typeof a.paymentAmount === 'number' ? a.paymentAmount : undefined,
+      paymentScreenshotUrl: '',
+    }));
+
+    order.isAlloted = true;
+    order.allocations = [...(order.allocations || []), ...allocations];
+    await order.save();
+
+    return res.json({ success: true, order });
+  } catch (err) {
+    console.error('allocate error', err);
+    return res.status(500).json({ success: false, message: "Error allocating order" });
+  }
+});
+
+// Upload payment screenshot for a specific allocation
+router.post('/orders/:orderId/allocations/:allocationId/payment', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { orderId, allocationId } = req.params;
+    const file = req.files?.paymentScreenshot;
+    if (!file) return res.status(400).json({ success: false, message: 'paymentScreenshot is required' });
+
+    // Simple pass-through to existing upload helper via formroute controller would be ideal; for now, mark uploaded flag without cloud storage
+    // In production, upload to Cloudinary similar to OrderUploadController
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+    const allocation = (order.allocations || []).id(allocationId);
+    if (!allocation) return res.status(404).json({ success: false, message: 'Allocation not found' });
+
+    // Mark as uploaded (stub URL)
+    allocation.isPaymentUploaded = true;
+    allocation.paymentScreenshotUrl = 'uploaded';
+    await order.save();
+    return res.json({ success: true, order });
+  } catch (err) {
+    console.error('allocation payment upload error', err);
+    return res.status(500).json({ success: false, message: 'Error uploading payment screenshot' });
+  }
+});
+
+// Fetch allocations for a user (visible only when payment uploaded)
+// moved to userRoutes for user access

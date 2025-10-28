@@ -67,6 +67,7 @@ exports.imageUpload = async (req, res) => {
       price,
       date,
       productName,
+      ecommercePlatform,
       brandName,
       season,
       address,
@@ -107,6 +108,7 @@ exports.imageUpload = async (req, res) => {
       price,
       date,
       productName,
+      ecommercePlatform: ecommercePlatform || "",
       brandName: brandName || "",
       season: season || "",
       address: address || "",
@@ -118,6 +120,8 @@ exports.imageUpload = async (req, res) => {
         isAlloted: isAlloted || false,
         link: link || "",
       screenshot: screenshotUrl, // empty string if no upload
+      isPaymentUploaded: false,
+      paymentScreenshotUrl: "",
     });
 
     // 4️⃣ Respond
@@ -132,7 +136,7 @@ exports.imageUpload = async (req, res) => {
   }
 };
 
-// Screenshot Upload Handler
+// Screenshot Upload Handler (generic image upload)
  exports.screenshotUpload = async (req, res) => {
   const file = req.files?.screenshot;
   console.log("Received file:", file);
@@ -164,4 +168,49 @@ exports.imageUpload = async (req, res) => {
     success: true,
     url: screenshotUrl,
   });
+};
+
+// Payment Screenshot upload and gate visibility
+exports.uploadPaymentScreenshot = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const file = req.files?.paymentScreenshot;
+
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: "orderId param is required" });
+    }
+
+    let paymentScreenshotUrl = "";
+
+    if (file) {
+      const supportedTypes = ["jpg", "jpeg", "png"];
+      const fileType = file.name.split(".").pop().toLowerCase();
+      if (supportedTypes.includes(fileType)) {
+        try {
+          const cloudinaryResponse = await uploadFileToCloudinary(file, "EBD-Payments");
+          paymentScreenshotUrl = cloudinaryResponse.secure_url || "";
+        } catch (err) {
+          console.error("Cloudinary payment upload failed:", err);
+          return res.status(500).json({ success: false, message: "Upload failed" });
+        }
+      } else {
+        return res.status(400).json({ success: false, message: "Unsupported file type" });
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "No file received" });
+    }
+
+    const updated = await Order.findByIdAndUpdate(
+      orderId,
+      { $set: { isPaymentUploaded: true, paymentScreenshotUrl } },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ success: false, message: "Order not found" });
+
+    return res.status(200).json({ success: true, order: updated });
+  } catch (error) {
+    console.error("uploadPaymentScreenshot error:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
 };

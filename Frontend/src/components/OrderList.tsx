@@ -5,11 +5,14 @@ export interface Order {
   id: string;
   address: string;
   product: string;
+  ecommercePlatform?: string;
   orderDate: string;
   quantity: number;
   amount: number;
   link: string;
   email?: string; // <-- added to track allotted user
+  isAlloted?: boolean;
+  isPaymentUploaded?: boolean;
 }
 
 interface OrderListProps {
@@ -24,6 +27,15 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
   const [users, setUsers] = useState<any[]>([]);
   const [allot, setAllot] = useState(false);
   const [allotedId, setAllottedid] = useState<string>("");
+  const [allocateOpen, setAllocateOpen] = useState(false);
+  const [allocateForOrderId, setAllocateForOrderId] = useState<string>("");
+  const [selectedUser, setSelectedUser] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [rows, setRows] = useState<Array<{ address: string; quantity: number; paymentAmount: number }>>([
+    { address: '', quantity: 1, paymentAmount: 0 }
+  ]);
+  const [allocateUploading, setAllocateUploading] = useState(false);
+  const [paymentFile, setPaymentFile] = useState<File | null>(null);
+  const [paymentUploadingFor, setPaymentUploadingFor] = useState<string | null>(null);
 
   const token = localStorage.getItem('token');
 
@@ -93,6 +105,11 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
     setAllottedid(id);
   }
 
+  function openAllocate(orderId: string) {
+    setAllocateForOrderId(orderId);
+    setAllocateOpen(true);
+  }
+
   async function handleAllotUpdate(email: string) {
     try {
       const headers = {
@@ -118,6 +135,25 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
       setAllottedid("");
     } catch (error) {
       console.error('Error allotting order:', error);
+    }
+  }
+
+  async function handleUploadPayment(orderId: string, file: File) {
+    try {
+      setPaymentUploadingFor(orderId);
+      const form = new FormData();
+      form.append('paymentScreenshot', file);
+      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/upload/orders/${orderId}/payment-screenshot`, {
+        method: 'POST',
+        body: form,
+      });
+      if (!response.ok) throw new Error('Payment upload failed');
+      const data = await response.json();
+      onUpdateOrder(orderId, { isPaymentUploaded: true } as any);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPaymentUploadingFor(null);
     }
   }
 
@@ -228,12 +264,20 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
                             )}
                           </div>
                         </div>
-                        <button
-                          className={`px-3 py-3 rounded-full text-xs font-bold ${getStatusColor("delivered")}`}
-                          onClick={() => handleAllot(order.id)}
-                        >
-                          Allot Order
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            className={`px-3 py-3 rounded-full text-xs font-bold ${getStatusColor("delivered")}`}
+                            onClick={() => handleAllot(order.id)}
+                          >
+                            Quick Allot
+                          </button>
+                          <button
+                            className="px-3 py-3 rounded-full text-xs font-bold bg-sky-100 text-sky-700 hover:bg-sky-200"
+                            onClick={() => openAllocate(order.id)}
+                          >
+                            Allocate (Multi)
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -249,9 +293,26 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
                           <DollarSign className="w-4 h-4" />
                           {formatCurrency(order.price)}
                         </div>
+                        {order.ecommercePlatform && (
+                          <div className="text-xs text-gray-500">{order.ecommercePlatform}</div>
+                        )}
                       </div>
 
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-2 items-center">
+                        {order.isAlloted && !order.isPaymentUploaded && (
+                          <div className="flex items-center gap-2">
+                            <label className="text-xs text-red-600 font-medium">Payment Left</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) handleUploadPayment(order.id, f);
+                              }}
+                              className="text-xs"
+                            />
+                          </div>
+                        )}
                         <button
                           onClick={() => handleEdit(order)}
                           className="p-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg"
@@ -333,6 +394,149 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
     </motion.div>
   )}
 </AnimatePresence>
+
+      {/* Allocate Modal (Multi-address) */}
+      <AnimatePresence>
+        {allocateOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 space-y-4 relative"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <button onClick={() => setAllocateOpen(false)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-700">✕</button>
+              <h3 className="text-lg font-semibold text-gray-800">Allocate Order</h3>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Select User</label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={selectedUser?.email || ''}
+                  onChange={(e) => {
+                    const u = users.find(x => x.email === e.target.value);
+                    setSelectedUser(u ? { id: u.id || u._id || '', name: u.name, email: u.email } : null);
+                  }}
+                >
+                  <option value="">Choose user...</option>
+                  {users.map(u => (
+                    <option key={u.id || u._id} value={u.email}>{u.name} ({u.email})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                {rows.map((r, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <select
+                      className="border rounded-lg px-3 py-2"
+                      value={r.address}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setRows(prev => prev.map((row, i) => i===idx ? { ...row, address: v } : row));
+                      }}
+                    >
+                      <option value="">Select address</option>
+                      <option value="Ayush - Kanpur">Ayush - Kanpur</option>
+                      <option value="Vivek - Kanpur">Vivek - Kanpur</option>
+                      <option value="Anuj - Firozabad">Anuj - Firozabad</option>
+                      <option value="Anuj - Gorakhpur">Anuj - Gorakhpur</option>
+                      <option value="Rahul - Gurgaon">Rahul - Gurgaon</option>
+                      <option value="Yash - Gurgaon">Yash - Gurgaon</option>
+                      <option value="Yash - Morena">Yash - Morena</option>
+                      <option value="Shivam - Firozabad">Shivam - Firozabad</option>
+                    </select>
+                    <input
+                      type="number"
+                      className="border rounded-lg px-3 py-2"
+                      min={1}
+                      value={r.quantity}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setRows(prev => prev.map((row, i) => i===idx ? { ...row, quantity: v } : row));
+                      }}
+                      placeholder="Quantity"
+                    />
+                    <input
+                      type="number"
+                      className="border rounded-lg px-3 py-2"
+                      min={0}
+                      value={r.paymentAmount}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setRows(prev => prev.map((row, i) => i===idx ? { ...row, paymentAmount: v } : row));
+                      }}
+                      placeholder="Payment Amount"
+                    />
+                  </div>
+                ))}
+                <div className="flex justify-between">
+                  <button
+                    className="px-3 py-2 text-sm bg-gray-100 rounded-lg"
+                    onClick={() => setRows(prev => [...prev, { address: '', quantity: 1, paymentAmount: 0 }])}
+                  >
+                    + Add Row
+                  </button>
+                  <div className="text-sm text-gray-600">Total: {rows.reduce((s, r) => s + (r.paymentAmount || 0), 0)}</div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Payment Screenshot (optional)</label>
+                <input type="file" accept="image/*" onChange={(e)=> setPaymentFile(e.target.files?.[0] || null)} />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button className="px-4 py-2 bg-gray-200 rounded-lg" onClick={()=> setAllocateOpen(false)}>Cancel</button>
+                <button
+                  disabled={allocateUploading}
+                  className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700"
+                  onClick={async ()=>{
+                    if (!selectedUser) return;
+                    try {
+                      setAllocateUploading(true);
+                      const form = new FormData();
+                      const assignments = rows
+                        .filter(r => r.address && r.quantity > 0)
+                        .map(r => ({
+                          address: r.address,
+                          quantity: r.quantity,
+                          paymentAmount: r.paymentAmount,
+                          email: selectedUser.email,
+                          userId: selectedUser.id,
+                          userName: selectedUser.name,
+                        }));
+                      form.append('assignments', JSON.stringify(assignments));
+                      if (paymentFile) form.append('paymentScreenshot', paymentFile);
+
+                      const resp = await fetch(`https://ebd-mocha.vercel.app/api/auth/admin/orders/${allocateForOrderId}/allocate`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: form,
+                      });
+                      const data = await resp.json();
+                      if (!data.success) throw new Error(data.message || 'Allocate failed');
+                      setAllocateOpen(false);
+                    } catch (e) {
+                      console.error(e);
+                    } finally {
+                      setAllocateUploading(false);
+                    }
+                  }}
+                >
+                  {allocateUploading ? 'Allocating...' : 'Allocate'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

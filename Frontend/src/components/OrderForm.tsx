@@ -19,6 +19,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
   const [formData, setFormData] = useState({
     address: '',
     product: '',
+    ecommercePlatform: '',
     brand: '',
     season: '',
     orderDate: new Date().toISOString().split('T')[0],
@@ -37,6 +38,9 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
     }
     if (!formData.product.trim()) {
       newErrors.product = 'Product is required';
+    }
+    if (!formData.ecommercePlatform.trim()) {
+      newErrors.ecommercePlatform = 'E-Commerce Platform is required';
     }
     if (formData.quantity < 1) {
       newErrors.quantity = 'Quantity must be at least 1';
@@ -57,6 +61,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
       setFormData({
         address: '',
         product: '',
+        ecommercePlatform: '',
         brand: '',
         season: '',
         orderDate: new Date().toISOString().split('T')[0],
@@ -96,8 +101,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
             <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
               Address *
             </label>
-            <input
-              type="text"
+            <select
               id="address"
               name="address"
               value={formData.address}
@@ -105,8 +109,17 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                 errors.address ? 'border-red-500' : 'border-gray-300'
               }`}
-              placeholder="Enter address"
-            />
+            >
+              <option value="">Select address</option>
+              <option value="Ayush - Kanpur">Ayush - Kanpur</option>
+              <option value="Vivek - Kanpur">Vivek - Kanpur</option>
+              <option value="Anuj - Firozabad">Anuj - Firozabad</option>
+              <option value="Anuj - Gorakhpur">Anuj - Gorakhpur</option>
+              <option value="Rahul - Gurgaon">Rahul - Gurgaon</option>
+              <option value="Yash - Gurgaon">Yash - Gurgaon</option>
+              <option value="Yash - Morena">Yash - Morena</option>
+              <option value="Shivam - Firozabad">Shivam - Firozabad</option>
+            </select>
             {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
           </div>
 
@@ -131,6 +144,29 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
+            <label htmlFor="ecommercePlatform" className="block text-sm font-medium text-gray-700 mb-1">
+              E-Commerce Platform *
+            </label>
+            <select
+              id="ecommercePlatform"
+              name="ecommercePlatform"
+              value={formData.ecommercePlatform}
+              onChange={handleChange}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                errors.ecommercePlatform ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select platform</option>
+              <option value="Amazon">Amazon</option>
+              <option value="Flipkart">Flipkart</option>
+              <option value="Myntra">Myntra</option>
+              <option value="Nykaa">Nykaa</option>
+              <option value="Other">Other</option>
+            </select>
+            {errors.ecommercePlatform && <p className="text-red-500 text-sm mt-1">{errors.ecommercePlatform}</p>}
+          </div>
+
+          <div>
             <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">
               Brand *
             </label>
@@ -147,6 +183,10 @@ const OrderForm: React.FC<OrderFormProps> = ({ onAddOrder }) => {
             />
             {errors.brand && <p className="text-red-500 text-sm mt-1">{errors.brand}</p>}
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
 
           <div>
             <label htmlFor="season" className="block text-sm font-medium text-gray-700 mb-1">

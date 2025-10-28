@@ -25,6 +25,8 @@ interface BrandStats {
   pendingOrders: number;
   allotedOrders: number;
   confirmedOrders: number;
+  paidToUsers?: number;
+  usedForOrders?: number;
 }
 
 const BrandPortal: React.FC = () => {
@@ -213,6 +215,27 @@ const BrandPortal: React.FC = () => {
                   </div>
                   <p className="text-2xl font-bold text-emerald-600">{stats.confirmedOrders}</p>
                   <p className="text-xs text-gray-600 text-center">Confirmed</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 bg-violet-100 rounded-full flex items-center justify-center mb-2">
+                    <DollarSign className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-violet-600">₹{(stats.paidToUsers || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-600 text-center">Paid to Users</p>
+                </div>
+              </div>
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-4">
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center mb-2">
+                    <DollarSign className="w-5 h-5 text-rose-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-rose-600">₹{(stats.usedForOrders || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-600 text-center">Used for Orders</p>
                 </div>
               </div>
             </div>
