@@ -208,7 +208,10 @@ router.post("/orders/:id/allocate", authMiddleware, adminMiddleware, async (req,
   try {
     const orderId = req.params.id;
     // assignments: [{ address, quantity, email, userId, userName, paymentAmount }]
-    const rawAssignments = req.body.assignments || [];
+    let rawAssignments = req.body.assignments || [];
+    if (typeof rawAssignments === 'string') {
+      try { rawAssignments = JSON.parse(rawAssignments); } catch (e) { rawAssignments = []; }
+    }
 
     if (!Array.isArray(rawAssignments) || rawAssignments.length === 0) {
       return res.status(400).json({ success: false, message: "assignments array is required" });

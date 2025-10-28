@@ -36,6 +36,9 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
   const [allocateUploading, setAllocateUploading] = useState(false);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [paymentUploadingFor, setPaymentUploadingFor] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAllotOpen, setBulkAllotOpen] = useState(false);
+  const [bulkUser, setBulkUser] = useState<{ id: string; name: string; email: string } | null>(null);
 
   const token = localStorage.getItem('token');
 
@@ -46,7 +49,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
     };
     const fetchUsers = async () => {
       try {
-        const response = await fetch('https://ebd-mocha.vercel.app/api/auth/admin/users', { headers });
+        const response = await fetch('http://localhost:3001/api/auth/admin/users', { headers });
         const data = await response.json();
         setUsers(data.users);
       } catch (err) {
@@ -143,7 +146,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
       setPaymentUploadingFor(orderId);
       const form = new FormData();
       form.append('paymentScreenshot', file);
-      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/upload/orders/${orderId}/payment-screenshot`, {
+      const response = await fetch(`http://localhost:3001/api/auth/upload/orders/${orderId}/payment-screenshot`, {
         method: 'POST',
         body: form,
       });
@@ -176,9 +179,18 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <Package className="w-5 h-5 text-purple-600" /> Orders List
           </h2>
-          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
-            {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+              {orders.length} {orders.length === 1 ? 'Order' : 'Orders'}
+            </span>
+            <button
+              disabled={selectedIds.length === 0}
+              onClick={() => setBulkAllotOpen(true)}
+              className={`px-3 py-2 rounded-lg text-xs font-semibold ${selectedIds.length ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`}
+            >
+              Allocate Selected
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -186,6 +198,17 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
             {orders.map((order) => {
               return (
                 <div key={order.id} className="border border-gray-200 rounded-lg p-4 mb-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-3 mb-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(order.id)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSelectedIds(prev => checked ? [...prev, order.id] : prev.filter(id => id !== order.id));
+                      }}
+                    />
+                    <span className="text-xs text-gray-500">Select</span>
+                  </div>
                   {editingId === order.id ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -531,6 +554,67 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
                   }}
                 >
                   {allocateUploading ? 'Allocating...' : 'Allocate'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Allocate Selected Orders */}
+      <AnimatePresence>
+        {bulkAllotOpen && (
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+            <motion.div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4 relative" initial={{scale:0.9,opacity:0}} animate={{scale:1,opacity:1}} exit={{scale:0.9,opacity:0}}>
+              <button onClick={()=> setBulkAllotOpen(false)} className="absolute top-3 right-3 text-gray-500 hover:text-gray-700">✕</button>
+              <h3 className="text-lg font-semibold text-gray-800">Allocate Selected Orders</h3>
+              <div>
+                <label className="block text-sm font-medium mb-1">Select User</label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={bulkUser?.email || ''}
+                  onChange={(e) => {
+                    const u = users.find(x => x.email === e.target.value);
+                    setBulkUser(u ? { id: u.id || u._id || '', name: u.name, email: u.email } : null);
+                  }}
+                >
+                  <option value="">Choose user...</option>
+                  {users.map(u => (
+                    <option key={u.id || u._id} value={u.email}>{u.name} ({u.email})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="text-sm text-gray-600">{selectedIds.length} order(s) selected</div>
+              <div className="flex justify-end gap-2">
+                <button className="px-4 py-2 bg-gray-200 rounded-lg" onClick={()=> setBulkAllotOpen(false)}>Cancel</button>
+                <button
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  onClick={async ()=>{
+                    if (!bulkUser || selectedIds.length === 0) return;
+                    try {
+                      const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      };
+                      // Send orderIds for compatibility; backend normalizes to assignments
+                      const uniqueIds = Array.from(new Set(selectedIds));
+                      const body = JSON.stringify({
+                        orderIds: uniqueIds,
+                        userId: bulkUser.id,
+                        userName: bulkUser.name,
+                        userEmail: bulkUser.email,
+                      });
+                      const resp = await fetch('http://localhost:3001/api/auth/admin/orders/bulk-allot', { method: 'POST', headers, body });
+                      const data = await resp.json();
+                      if (!data.success) throw new Error(data.message || 'Bulk allocate failed');
+                      setBulkAllotOpen(false);
+                      setSelectedIds([]);
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                >
+                  Allocate
                 </button>
               </div>
             </motion.div>
