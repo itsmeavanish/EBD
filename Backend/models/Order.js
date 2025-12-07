@@ -9,7 +9,7 @@ const OrderSchema = new mongoose.Schema({
     ecommercePlatform: { type: String, required: false },
     brandName: { type: String, required: false },
     season: { type: String, required: false },
-    address: { type: String, required: true },
+    address: { type: String, required: false },
     otherAddress: { type: String, required: false },
     reviewerName: { type: String, required: false },
     mediatorName: { type: String, required: false },

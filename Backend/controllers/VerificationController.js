@@ -1,5 +1,5 @@
 const Tesseract = require('tesseract.js');
-const { Order } = require('../models/Order');
+const  PlacedOrder  = require('../models/PlacedOrder');
 const fs = require('fs');
 const path = require('path');
 const os = require('os'); // ✅ for temporary dir
@@ -26,7 +26,7 @@ const verifyScreenshot = async (req, res) => {
     }
 
     // ✅ Check order in database
-    const order = await Order.findOne({ orderId: orderNumber });
+    const order = await PlacedOrder.findOne({ orderId: orderNumber });
     if (!order) {
       return res.status(404).json({
         success: false,

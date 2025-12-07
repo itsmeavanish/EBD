@@ -3,13 +3,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Upload, Calendar } from 'lucide-react';
 
 interface OrderFormData {
-  orderId: string;
+  orderId: string;          // marketplace order id (Amazon/Myntra)
   price: string;
   screenshot: File | null;
   date: string;
   productName: string;
-  brandName: string; // ✅ added
-  quantity: string; // ✅ added
+  brandName: string;
+  quantity: string;
   address: string;
   otherAddress: string;
   reviewerName: string;
@@ -21,32 +21,30 @@ interface OrderFormProps {
 }
 
 const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
-  const { user, order } = useAuth();
+  const { user, order } = useAuth() as any;
+
+  // order from context looks like:
+  // {
+  //   address, allocationId, date, ecommercePlatform, email,
+  //   isPlaced, link, orderId (main Order _id), price, product, quantity
+  // }
+
   const [formData, setFormData] = useState<OrderFormData>({
     orderId: '',
-    price: order ? order.price : '',
+    price: order ? String(order.price ?? '') : '',
     screenshot: null,
-    date: order ? order.date : '',
-    productName: order ? order.productName : '',
-    brandName: order ? order.brandName || '' : '', // ✅ added
-    quantity: order ? String(order.quantity || '') : '', // ✅ added
-    address: order ? order.address : '',
+    date: order ? (order.date ? String(order.date).slice(0, 10) : '') : '',
+    productName: order ? order.product || '' : '',
+    brandName: order ? order.brandName || '' : '',
+    quantity: order ? String(order.quantity ?? '') : '',
+    address: order ? order.address || '' : '',
     otherAddress: '',
     reviewerName: '',
-    mediatorName: ''
+    mediatorName: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
-
-  const productOptions = [
-    'Alpha Mortal Sunscreen Aqua Gel SPF 50',
-    'SEREKO Face Serum',
-    'Beauty Product 1',
-    'Beauty Product 2',
-    'Skincare Item 1',
-    'Skincare Item 2'
-  ];
 
   const addressOptions = [
     'Ayush - Kanpur',
@@ -56,13 +54,13 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
     'Rahul - Gurgaon',
     'Yash - Gurgaon',
     'Yash - Morena',
-    'Shivam - Firozabad'
+    'Shivam - Firozabad',
   ];
 
   const handleInputChange = (field: keyof OrderFormData, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -70,7 +68,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
     const file = e.target.files?.[0] || null;
     setFormData(prev => ({
       ...prev,
-      screenshot: file
+      screenshot: file,
     }));
   };
 
@@ -103,30 +101,41 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
         }
       }
 
-      // Step 2: Prepare order payload
+      // Step 2: Prepare payload for /upload/placingorder
+      const resolvedAddress =
+        formData.address === 'Other' ? formData.otherAddress : formData.address;
+
       const orderPayload = {
-        orderId: formData.orderId,
+        // fields your placingOrder controller currently expects:
+        orderId: formData.orderId, // marketplace order id (not the schema orderId)
+        quantity: formData.quantity,
         price: formData.price,
         date: formData.date,
         productName: formData.productName,
-        brandName: formData.brandName, // ✅ added
-        quantity: formData.quantity, // ✅ added
-        address:
-          formData.address === 'Other' ? formData.otherAddress : formData.address,
+        ecommercePlatform: order?.ecommercePlatform || '',
+        brandName: formData.brandName,
+        season: '', // optional, you can add UI later
+        address: resolvedAddress,
         reviewerName: formData.reviewerName,
         mediatorName: formData.mediatorName,
         screenshot: screenshotUrl,
+        email: order?.email || user?.email || '',
         isPlaced: true,
         isAlloted: true,
+        link: order?.link || '',
+
+        // ⭐ important for backend to delete allocation from Order.allocations
+        parentOrderId: order?.orderId,          // main Order _id (6932d0631b...)
+        allocationId: order?.allocationId,      // allocation _id (6932d1431b...)
       };
 
       const token = localStorage.getItem('token');
       let success = false;
 
-      // Step 3: Update existing order
-      console.log('Current order:', order);
+      // Step 3: Update existing placed order if you ever pass its _id in order._id
+      console.log('Current order from context:', order);
       if (order && order._id) {
-        console.log('📝 Updating existing order:', order._id);
+        console.log('📝 Updating existing placed order:', order._id);
         const updateResponse = await fetch(
           `https://ebd-mocha.vercel.app/api/auth/orders/${order._id}`,
           {
@@ -141,20 +150,20 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
 
         if (updateResponse.ok) {
           const data = await updateResponse.json();
-          console.log('✅ Updated order:', data.order);
+          console.log('✅ Updated placed order:', data.order);
           success = true;
         } else if (updateResponse.status === 404) {
-          console.warn('Order not found, creating new entry...');
+          console.warn('Placed order not found, creating new entry...');
         } else {
-          throw new Error('Failed to update order');
+          throw new Error('Failed to update placed order');
         }
       }
 
-      // Step 4: Create new order
+      // Step 4: Create new placed order
       if (!order?._id || !success) {
-        console.log('🆕 Creating new order...');
+        console.log('🆕 Creating new placed order...');
         const createResponse = await fetch(
-          'https://ebd-mocha.vercel.app/api/auth/upload/orders',
+          'https://ebd-mocha.vercel.app/api/auth/upload/placingorder',
           {
             method: 'POST',
             headers: {
@@ -167,10 +176,10 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
 
         if (createResponse.ok) {
           const data = await createResponse.json();
-          console.log('✅ Created new order:', data.order);
+          console.log('✅ Created new placed order:', data.order);
           success = true;
         } else {
-          throw new Error('Failed to create new order');
+          throw new Error('Failed to create placed order');
         }
       }
 
@@ -183,8 +192,8 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
           screenshot: null,
           date: '',
           productName: '',
-          brandName: '', // ✅ added
-          quantity: '', // ✅ added
+          brandName: '',
+          quantity: '',
           address: '',
           otherAddress: '',
           reviewerName: '',
@@ -232,7 +241,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               required
               value={formData.orderId}
               onChange={(e) => handleInputChange('orderId', e.target.value)}
-              placeholder="Enter your order ID"
+              placeholder="Enter your marketplace order ID"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
@@ -252,7 +261,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
             />
           </div>
 
-          {/* ✅ Brand Name */}
+          {/* Brand Name */}
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6">
             <label className="block text-lg font-medium text-gray-900 mb-4">
               Brand Name <span className="text-red-500">*</span>
@@ -267,7 +276,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
             />
           </div>
 
-          {/* ✅ Quantity */}
+          {/* Quantity */}
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6">
             <label className="block text-lg font-medium text-gray-900 mb-4">
               Quantity <span className="text-red-500">*</span>
@@ -296,7 +305,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
                 onChange={handleFileChange}
                 className="hidden"
                 id="screenshot-upload"
-                required
+                required={!order?.screenshot}
               />
               <label
                 htmlFor="screenshot-upload"
@@ -335,10 +344,11 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               Product Name <span className="text-red-500">*</span>
             </label>
             <input
-              type='text'
+              type="text"
               required
               value={formData.productName}
               onChange={(e) => handleInputChange('productName', e.target.value)}
+              placeholder="Enter product name"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
             />
           </div>
@@ -349,17 +359,17 @@ const OrderForm: React.FC<OrderFormProps> = ({ onBack }) => {
               Address <span className="text-red-500">*</span>
             </label>
             <div className="space-y-3">
-              {addressOptions.map((address, index) => (
+              {addressOptions.map((addr, index) => (
                 <label key={index} className="flex items-center">
                   <input
                     type="radio"
                     name="address"
-                    value={address}
-                    checked={formData.address === address}
+                    value={addr}
+                    checked={formData.address === addr}
                     onChange={(e) => handleInputChange('address', e.target.value)}
                     className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                   />
-                  <span className="ml-3 text-gray-700">{address}</span>
+                  <span className="ml-3 text-gray-700">{addr}</span>
                 </label>
               ))}
               <label className="flex items-center">

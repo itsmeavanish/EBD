@@ -21,9 +21,6 @@ router.put("/orders/:id", authMiddleware, async (req, res) => {
 });
 //get all users
 
-
-module.exports = router;
-
 // Fetch allocations for a user (visible only when payment uploaded)
 router.get('/users/:email/allocations', authMiddleware, async (req, res) => {
   try {
@@ -32,8 +29,11 @@ router.get('/users/:email/allocations', authMiddleware, async (req, res) => {
     const items = [];
     console.log("orders",orders);
     orders.forEach(o => {
-      (o.allocations || []).forEach(a => {
-        if (a.email === email && a.isPaymentUploaded) {
+      
+       o.isPaymentUploaded &&((o.allocations || [])).forEach(a => {
+        console.log("o.allocations",o.allocations);
+        console.log("a",a);
+        if (a.email === email) {
           items.push({
             orderId: String(o._id),
             allocationId: String(a._id),
@@ -50,9 +50,12 @@ router.get('/users/:email/allocations', authMiddleware, async (req, res) => {
         }
       })
     });
+    console.log("allocations items",items);
     return res.json({ success: true, allocations: items });
+
   } catch (err) {
     console.error('fetch allocations error', err);
     return res.status(500).json({ success: false, message: 'Error fetching allocations' });
   }
 });
+module.exports = router;

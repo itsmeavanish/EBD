@@ -71,16 +71,16 @@ const UserDashboard: React.FC = () => {
       };
 
       const [placedOrdersRes, refundOrdersRes, allocationsRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/auth/upload/fetchfile?email=${user.email}`, { headers }),
-        fetch(`http://localhost:3001/api/refunds/refunds`, { headers }),
-        fetch(`http://localhost:3001/api/auth/users/${encodeURIComponent(user.email)}/allocations`, { headers })
+        fetch(`https://ebd-mocha.vercel.app/api/auth/upload/fetchplacedorder?email=${user.email}`, { headers }),
+        fetch(`https://ebd-mocha.vercel.app/api/refunds/refunds`, { headers }),
+        fetch(`https://ebd-mocha.vercel.app/api/auth/users/${encodeURIComponent(user.email)}/allocations`, { headers })
       ]);
 
       
       const placedData = await placedOrdersRes.json();
       const refundData = await refundOrdersRes.json();
       const allocationsData = await allocationsRes.json();
-      console.log("placedData",placedData);
+      console.log("placedData",allocationsData);
       if (placedOrdersRes.ok && placedData.success) {
         setOrders(placedData.files);
       }

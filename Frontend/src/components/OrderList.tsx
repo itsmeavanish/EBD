@@ -49,7 +49,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
     };
     const fetchUsers = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/auth/admin/users', { headers });
+        const response = await fetch('https://ebd-mocha.vercel.app/api/auth/admin/users', { headers });
         const data = await response.json();
         setUsers(data.users);
       } catch (err) {
@@ -121,7 +121,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
       };
 
       // update email for selected order
-      const response = await fetch(`http://localhost:3001/api/auth/admin/orders/${allotedId}`, {
+      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/admin/orders/${allotedId}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({ email }),
@@ -146,7 +146,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
       setPaymentUploadingFor(orderId);
       const form = new FormData();
       form.append('paymentScreenshot', file);
-      const response = await fetch(`http://localhost:3001/api/auth/upload/orders/${orderId}/payment-screenshot`, {
+      const response = await fetch(`https://ebd-mocha.vercel.app/api/auth/upload/orders/${orderId}/payment-screenshot`, {
         method: 'POST',
         body: form,
       });
@@ -330,6 +330,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
                               accept="image/*"
                               onChange={(e) => {
                                 const f = e.target.files?.[0];
+                                console.log('Uploading payment for order:', order);
                                 if (f) handleUploadPayment(order.id, f);
                               }}
                               className="text-xs"
@@ -604,7 +605,7 @@ const OrderList: React.FC<OrderListProps> = ({ orders, onDeleteOrder, onUpdateOr
                         userName: bulkUser.name,
                         userEmail: bulkUser.email,
                       });
-                      const resp = await fetch('http://localhost:3001/api/auth/admin/orders/bulk-allot', { method: 'POST', headers, body });
+                      const resp = await fetch('https://ebd-mocha.vercel.app/api/auth/admin/orders/bulk-allot', { method: 'POST', headers, body });
                       const data = await resp.json();
                       if (!data.success) throw new Error(data.message || 'Bulk allocate failed');
                       setBulkAllotOpen(false);
