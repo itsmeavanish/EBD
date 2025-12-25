@@ -9,9 +9,9 @@ const { Order } = require("../models/Order");
 const mime = require("mime-types");
 const mongoose = require("mongoose");
 const PlacedOrder = require("../models/PlacedOrder");
-
+const os = require("os");
 // Helpers
-const FILE_DIR = path.join(__dirname, "files");
+const FILE_DIR = os.tmpdir();
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5 MB, adjust as needed
 const allowedImageMimes = new Set(["image/jpeg", "image/png", "image/jpg"]);
 
